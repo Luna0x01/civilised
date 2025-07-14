@@ -1,0 +1,45 @@
+[versions]
+kotlin = "2.2.0"
+shadow = "8.3.0"
+run-paper = "2.3.1"
+minecraft = "1.21.4"
+paper = "1.21.4-R0.1-SNAPSHOT"
+reflections = "0.10.2"
+hikari = "4.0.3"
+exposed = "1.0.0-beta-2"
+postgresql = "42.7.7"
+kotlinx-coroutines = "1.10.2"
+kotlinx-serialization-json = "1.8.1"
+mysql-connector = "9.3.0"
+sqlite = "3.50.2.0"
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
+run-paper = { id = "xyz.jpenilla.run-paper", version.ref = "run-paper" }
+
+[libraries]
+paper-api = { group = "io.papermc.paper", name = "paper-api", version.ref = "paper" }
+kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlin" }
+reflections = { group = "org.reflections", name = "reflections", version.ref = "reflections" }
+postgres = { group = "org.postgresql", name = "postgresql", version.ref = "postgresql" }
+exposed-core = { group = "org.jetbrains.exposed", name = "exposed-core", version.ref = "exposed" }
+exposed-dao = { group = "org.jetbrains.exposed", name = "exposed-dao", version.ref = "exposed" }
+exposed-jdbc = { group = "org.jetbrains.exposed", name = "exposed-jdbc", version.ref = "exposed" }
+exposed-java-time = { group = "org.jetbrains.exposed", name = "exposed-java-time", version.ref = "exposed" }
+exposed-migration = { group = "org.jetbrains.exposed", name = "exposed-migration", version.ref = "exposed" }
+hikari = { group = "com.zaxxer", name = "HikariCP", version.ref = "hikari" }
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinx-coroutines"  }
+kotlinx-coroutines-reactive = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-reactive", version.ref = "kotlinx-coroutines"  }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization-json"  }
+mysql-connector = { group = "com.mysql", name = "mysql-connector-j", version.ref = "mysql-connector" }
+sqlite-jdbc = { group = "org.xerial", name = "sqlite-jdbc", version.ref = "sqlite" }
+
+[bundles]
+exposed = [
+    "exposed-core", "exposed-dao",
+    "exposed-java-time", "exposed-jdbc", "exposed-migration", "postgres"
+]
+kotlinx-coroutines = [
+    "kotlinx-coroutines-core", "kotlinx-coroutines-reactive"
+]

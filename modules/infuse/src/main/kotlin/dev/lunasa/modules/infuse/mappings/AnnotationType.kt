@@ -1,0 +1,7 @@
+package dev.lunasa.modules.infuse.mappings
+
+enum class AnnotationType {
+    // We really don't need @Qualifier and @Singleton due to how
+    // our binder configuration works and how Kotlin objects work.
+    Inject, Named, Extract, PreDestroy, PostConstruct
+}

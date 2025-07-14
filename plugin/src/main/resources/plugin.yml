@@ -1,0 +1,4 @@
+name: civilised
+version: '1.0-SNAPSHOT'
+main: dev.lunasa.plugin.Civilised
+api-version: '1.21'

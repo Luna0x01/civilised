@@ -1,0 +1,404 @@
+package dev.lunasa.modules.infuse
+
+import dev.lunasa.modules.infuse.binder.InfuseBinderContainer
+import dev.lunasa.modules.infuse.mappings.AnnotationMappings
+import dev.lunasa.modules.infuse.mappings.AnnotationType
+import dev.lunasa.modules.infuse.reflections.PackageIndexer
+import dev.lunasa.modules.infuse.service.Service
+import dev.lunasa.modules.infuse.service.ignore.IgnoreAutoScan
+import java.lang.reflect.Method
+import java.util.logging.Level
+import kotlin.reflect.KClass
+
+class Infuse(
+    initializer: KClass<*>,
+    val options: InfuseOptions
+) {
+    companion object {
+        /**
+         * Creates a new [Infuse] instance using [T]'s [KClass],
+         * and the [options], if any are given.
+         */
+        @JvmStatic
+        inline fun <reified T> create(
+            options: InfuseOptions = InfuseOptions()
+        ): Infuse {
+            return Infuse(T::class, options)
+        }
+
+        @JvmStatic
+        fun create(
+            initializer: KClass<*>,
+            options: InfuseOptions = InfuseOptions()
+        ): Infuse {
+            return Infuse(initializer, options)
+        }
+    }
+
+    val reflections = PackageIndexer(initializer, options)
+
+    val binders = mutableListOf<InfuseBinder<*>>()
+    val services = mutableMapOf<KClass<*>, Any>()
+
+    val scanners =
+        mutableMapOf<KClass<out Annotation>, (Method, Any) -> Unit>()
+
+    inline fun <reified T : Annotation> listen(
+        noinline lambda: (Method, Any) -> Unit
+    ) {
+        scanners[T::class] = lambda
+    }
+
+    /**
+     * Inherit an arbitrary [InfuseBinderContainer]
+     * and populate our binders with its ones.
+     */
+    fun inherit(container: InfuseBinderContainer): Infuse {
+        container.javaClass.methods
+            .filter {
+                AnnotationMappings.matchesAny(AnnotationType.Extract, it.annotations)
+            }
+            .forEach {
+                this.binders += InfuseBinder(it.returnType.kotlin) to it.invoke(container)
+            }
+
+        container.javaClass.fields
+            .filter {
+                AnnotationMappings.matchesAny(AnnotationType.Extract, it.annotations)
+            }
+            .forEach {
+                this.binders += InfuseBinder(it.type.kotlin) to it.get(container)
+            }
+
+        container.populate()
+        binders += container.binders
+        return this
+    }
+
+    /**
+     * Searches for & returns a
+     * service matching type [T].
+     *
+     * @return the service
+     * @throws RuntimeException if there is
+     * no service matching type [T].
+     */
+    inline fun <reified T> service(): T {
+        val service = services[T::class]
+            ?: throw RuntimeException("A non-service class was provided.")
+
+        return service as T
+    }
+
+    /**
+     * Creates a new [InfuseBinder] for type [T].
+     */
+    inline fun <reified T : Any> bind(): InfuseBinder<T> {
+        val binder = InfuseBinder(T::class)
+        binders.add(binder)
+
+        return binder
+    }
+
+    inline fun <reified A : Annotation> findSingletons(): List<Any> {
+        return reflections.getTypesAnnotatedWith<A>()
+            .mapNotNull { it.objectInstance() }
+            .filter {
+                it.javaClass.isAnnotationPresent(A::class.java)
+            }
+    }
+
+    /**
+     * Creates & inject a new injected instance of [T].
+     */
+    inline fun <reified T : Any> injected(): T {
+        val boundClasses = this.binders.map { it.kClass.java }
+
+        val constructor = T::class.java.constructors
+            .firstOrNull {
+                AnnotationMappings
+                    .matchesAny(
+                        AnnotationType.Inject, it.annotations
+                    ) &&
+                        it.parameterTypes
+                            .all { type ->
+                                type in boundClasses
+                            }
+            }
+            ?: throw IllegalStateException(
+                "Unable to find constructor with all fields injected"
+            )
+
+        val orderedInstances = mutableListOf<Any>()
+
+        constructor.parameters.forEach {
+            val injectionInstance = this
+                .findInstanceForInjection(
+                    it.type, it.annotations
+                )
+
+            orderedInstances += injectionInstance
+        }
+
+        val instance = constructor
+            .newInstance(
+                *orderedInstances.toTypedArray()
+            )
+
+        // injection on instance variables marked with an injection annotation
+        inject(instance)
+
+        return instance as T
+    }
+
+    /**
+     * Injects fields into a pre-existing class, [any].
+     */
+    fun inject(any: Any) {
+        scanAndInject(any::class, any)
+    }
+
+    /**
+     * Scans & injects any services and/or singletons (kt objects)
+     * that contain fields annotated with [Inject].
+     */
+    fun startup() {
+        val classes = reflections
+            .getTypesAnnotatedWith<Service>()
+            .sortedByDescending {
+                it.getAnnotation(Service::class.java)
+                    ?.priority ?: 1
+            }
+
+        for (clazz in classes) {
+            val ignoreAutoScan = clazz
+                .getAnnotation(
+                    IgnoreAutoScan::class.java
+                )
+
+            if (ignoreAutoScan == null) {
+                kotlin.runCatching {
+                    scanAndInject(clazz.kotlin, clazz.objectInstance() ?: clazz.getDeclaredConstructor().newInstance())
+                }.onFailure {
+                    it.printStackTrace()
+                    options.logger.log(Level.WARNING, "An exception was thrown during injection", it)
+                }
+            }
+        }
+    }
+
+    /**
+     * Invokes the `close` method in all registered services. If a
+     * service does not have a close method, the service will be skipped.
+     */
+    fun close() {
+        for (entry in services.entries.sortedBy { it.key.java.getDeclaredAnnotation(Service::class.java)?.priority ?: 1 }) {
+            val close = entry.key.java.declaredMethods
+                .firstOrNull {
+                    AnnotationMappings.matchesAny(AnnotationType.PreDestroy, it.annotations)
+                }
+
+            val service = entry.key.java
+                .getDeclaredAnnotation(Service::class.java)
+
+            val milli = tracked {
+                close?.invoke(entry.value)
+            }
+
+            if (milli != -1L) {
+                options.logger.info {
+                    "[Services] Shutdown [${
+                        service.name.ifEmpty {
+                            entry.key.java.simpleName
+                        }
+                    }] in ${milli}ms."
+                }
+            } else {
+                options.logger.info {
+                    "[Services] Failed to shutdown [${
+                        service.name.ifEmpty {
+                            entry.key.java.simpleName
+                        }
+                    }]!"
+                }
+            }
+        }
+    }
+
+    /**
+     * Invokes the provided [lambda] while keeping track of
+     * the amount of time it took to run in milliseconds.
+     *
+     * Any exception thrown within the lambda will be printed,
+     * and `-1` will be returned.
+     */
+    private fun tracked(lambda: () -> Unit): Long {
+        val start = System.currentTimeMillis()
+
+        try {
+            lambda.invoke()
+        } catch (exception: Exception) {
+            exception.printStackTrace()
+            return -1
+        }
+
+        return System.currentTimeMillis() - start
+    }
+
+    fun findInstanceForInjection(type: Class<*>, annotations: Array<Annotation>): Any {
+        // trying to find [InfuseBinder]s
+        // of the field's type
+        val bindersOfType = binders
+            .filter { it.kClass.java == type }
+            .toMutableList()
+
+        for (infuseBinder in bindersOfType) {
+            for (annotation in annotations) {
+                // making sure if there are any annotation
+                // checks, that the field passes the check
+                infuseBinder.annotationChecks[annotation::class]
+                    ?.let {
+                        val passesCheck = it.invoke(annotation)
+
+                        if (!passesCheck) {
+                            bindersOfType.remove(infuseBinder)
+                        }
+                    }
+            }
+        }
+
+        // retrieving the first binder of the field's type
+        return bindersOfType.firstOrNull()
+            ?: throw IllegalArgumentException(
+                "Did not find any binder for type ${type.simpleName} that satisfies $annotations"
+            )
+    }
+
+    /**
+     * Scans & injects a provided [KClass], along with its
+     * singleton instance if there is one.
+     */
+    private fun scanAndInject(clazz: KClass<*>, instance: Any? = null) {
+        // use the provided instance, or the singleton
+        // we got through KClass#objectInstance.
+        val singleton = instance
+            ?: clazz.java.objectInstance()
+            ?: return
+
+        println("[Services] Scanning & injecting ${clazz.java.simpleName}...")
+
+        // checking if this class is a service and automatically create a binder for it
+        val isServiceClazz = clazz.java
+            .isAnnotationPresent(Service::class.java)
+
+        if (isServiceClazz) {
+            // automatically create a binder for this service so other services can inject it
+            val existingBinder = binders.find { it.kClass == clazz }
+            if (existingBinder == null) {
+                val serviceBinder = InfuseBinder(clazz) to singleton
+                binders.add(serviceBinder)
+            }
+        }
+
+        for (field in clazz.java.declaredFields) {
+            // making sure this field is annotated with
+            // Inject before modifying its value.
+            if (AnnotationMappings.matchesAny(AnnotationType.Inject, field.annotations)) {
+                val injectionInstance = this
+                    .findInstanceForInjection(
+                        field.type, field.annotations
+                    )
+
+                val accessibility = field.isAccessible
+
+                field.isAccessible = true
+                field.set(singleton, if (injectionInstance is InfuseBinder<*>) {
+                    injectionInstance.instance
+                } else {
+                    injectionInstance
+                })
+                field.isAccessible = accessibility
+            }
+        }
+
+        for (method in clazz.java.declaredMethods) {
+            if (
+                AnnotationMappings.matchesAny(
+                    AnnotationType.Inject, method.annotations
+                ) && method.parameterCount == 1
+            ) {
+                val injectionInstance = this
+                    .findInstanceForInjection(
+                        method.parameterTypes.first(),
+                        method.annotations
+                    )
+
+                method.invoke(singleton, injectionInstance)
+            }
+
+            val annotations = method.annotations
+                .filter {
+                    scanners[it::class] != null
+                }
+
+            for (annotation in annotations) {
+                try {
+                    scanners[annotation::class]
+                        ?.invoke(method, singleton)
+                } catch (exception: Exception) {
+                    options.logger.log(
+                        Level.SEVERE,
+                        "Error occurred while invoking function",
+                        exception
+                    )
+                }
+            }
+        }
+
+
+        if (isServiceClazz) {
+            val configure = clazz.java.declaredMethods
+                .firstOrNull {
+                    AnnotationMappings.matchesAny(AnnotationType.PostConstruct, it.annotations)
+                }
+
+            // singletons should always be non-null
+            services[clazz] = singleton
+
+            val service = clazz.java
+                .getDeclaredAnnotation(Service::class.java)
+
+            val milli = tracked {
+                configure?.invoke(singleton)
+            }
+
+            // making sure an exception wasn't thrown
+            // while trying to configure the service
+            if (milli != -1L) {
+                options.logger.info(
+                    "[Services] Loaded [${
+                        service.name.ifEmpty {
+                            clazz.java.simpleName
+                        }
+                    }] in ${milli}ms."
+                )
+            } else {
+                options.logger.severe(
+                    "[Services] Failed to load [${
+                        service.name.ifEmpty {
+                            clazz.java.simpleName
+                        }
+                    }]!"
+                )
+            }
+        }
+    }
+
+    fun Class<*>.objectInstance(): Any? {
+        return kotlin
+            .runCatching {
+                getDeclaredField("INSTANCE").get(null)
+            }
+            .getOrNull()
+    }
+}
