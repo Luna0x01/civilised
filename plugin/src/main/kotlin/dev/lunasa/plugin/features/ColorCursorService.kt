@@ -8,13 +8,7 @@ import dev.lunasa.plugin.features.cursor.ColorCursor
 import dev.lunasa.plugin.persistence.tables.Players
 import net.kyori.adventure.text.Component
 import org.bukkit.Bukkit
-import org.bukkit.attribute.Attribute
-import org.bukkit.entity.Animals
-import org.bukkit.entity.Bee
-import org.bukkit.entity.Boss
 import org.bukkit.entity.LivingEntity
-import org.bukkit.entity.Monster
-import org.bukkit.entity.NPC
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -22,7 +16,6 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDeathEvent
 import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
-import org.bukkit.scheduler.BukkitRunnable
 import org.bukkit.scoreboard.Team
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.selectAll
