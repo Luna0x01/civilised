@@ -17,6 +17,7 @@ dependencies {
     implementation(project(":modules:infuse"))
     implementation(project(":modules:configuration"))
     implementation(project(":modules:commander"))
+    implementation(project(":modules:ui"))
 
     compileOnly(libs.paper.api)
 }

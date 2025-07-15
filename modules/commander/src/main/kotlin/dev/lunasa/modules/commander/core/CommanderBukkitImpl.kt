@@ -1,5 +1,6 @@
 package dev.lunasa.modules.commander.core
 
+import dev.lunasa.modules.commander.CommandCategoryKey
 import dev.lunasa.modules.commander.api.CommandExecutor
 import dev.lunasa.modules.commander.api.CommandTabCompleter
 import net.kyori.adventure.text.Component
@@ -13,9 +14,10 @@ class CommanderBukkitImpl(
     cmdDescription: String,
     cmdUsage: String,
     aliases: List<String>,
+    val key: CommandCategoryKey,
     private val cmdPermission: String?,
     private val playerOnly: Boolean,
-    private val subCommands: Map<String, CommanderBukkitImpl>,
+    val subCommands: Map<String, CommanderBukkitImpl>,
     private val executor: CommandExecutor?,
     private val tabCompleter: CommandTabCompleter?
 ) : Command(name) {

@@ -33,6 +33,7 @@ abstract class OptionStorage(val plugin: JavaPlugin, val name: String) {
 
     // We enforce that the property MUST have a default value
     protected fun <T> property(path: String, default: T): ConfigurationProperty<T> {
+        load()
         return ConfigurationProperty(path, default)
     }
 
@@ -56,6 +57,9 @@ abstract class OptionStorage(val plugin: JavaPlugin, val name: String) {
             if (path.isBlank()) {
                 throw IllegalArgumentException("Path cannot be blank")
             }
+
+            if (!fileConfiguration.contains(path))
+                fileConfiguration.set(path, default)
         }
 
         @Suppress("UNCHECKED_CAST")

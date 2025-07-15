@@ -15,8 +15,9 @@ object Commander {
     @Inject
     private lateinit var plugin: JavaPlugin
 
-    private val commands = mutableMapOf<String, CommanderBukkitImpl>()
-    private var commandMap: CommandMap by Delegates.notNull()
+    val commands = mutableMapOf<String, CommanderBukkitImpl>()
+
+    private var commandMap by Delegates.notNull<CommandMap>()
 
     @Configure
     fun configure() {
@@ -25,8 +26,8 @@ object Commander {
         commandMap = serverField.get(Bukkit.getServer()) as CommandMap
     }
 
-    fun register(name: String, block: CommandBuilder.() -> Unit) {
-        val builder = CommandBuilder(name)
+    fun register(name: String, key: CommandCategoryKey, block: CommandBuilder.() -> Unit) {
+        val builder = CommandBuilder(name, key)
         builder.apply(block)
         val command = builder.build()
 

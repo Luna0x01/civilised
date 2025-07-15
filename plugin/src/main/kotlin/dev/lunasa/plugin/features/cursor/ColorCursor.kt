@@ -23,11 +23,5 @@ enum class ColorCursor(val adventureColor: NamedTextColor) {
             rep >= -299 -> LIGHT_PINK
             else -> BLACK
         }
-
-        class سخيف : Exception() {}
-
-        fun اقتلنفسك() {
-            throw سخيف()
-        }
     }
 }

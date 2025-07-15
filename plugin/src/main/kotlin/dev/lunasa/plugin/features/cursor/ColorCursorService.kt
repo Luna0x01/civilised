@@ -1,5 +1,6 @@
 package dev.lunasa.plugin.features.cursor
 
+import dev.lunasa.modules.commander.CommandCategoryKey
 import dev.lunasa.modules.commander.Commander
 import dev.lunasa.modules.infuse.inject.Inject
 import dev.lunasa.modules.infuse.service.Configure
@@ -33,6 +34,10 @@ import java.util.UUID
 @Suppress("unused")
 @Service
 class ColorCursorService : Listener {
+    companion object {
+        val KEY = CommandCategoryKey("Reputation", "Commands related to player reputation and voting.")
+    }
+
     @Inject
     private lateinit var plugin: Civilised
 
@@ -100,7 +105,7 @@ class ColorCursorService : Listener {
 
     private fun registerCommands() {
         listOf("upvote" to 1, "downvote" to -1).forEach { (name, value) ->
-            Commander.register(name) {
+            Commander.register(name, KEY) {
                 playerOnly()
                 description("${name.replaceFirstChar {
                     if (it.isLowerCase()) it.titlecase(getDefault()) else it.toString() 
@@ -137,7 +142,7 @@ class ColorCursorService : Listener {
             }
         }
 
-        Commander.register("downvote") {
+        Commander.register("unvote", KEY) {
             playerOnly()
             description("Remove your vote on a player.")
             usage("/unvote <player>")

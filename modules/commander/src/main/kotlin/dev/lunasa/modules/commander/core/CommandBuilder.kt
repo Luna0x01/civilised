@@ -1,9 +1,10 @@
 package dev.lunasa.modules.commander.core
 
+import dev.lunasa.modules.commander.CommandCategoryKey
 import dev.lunasa.modules.commander.api.CommandExecutor
 import dev.lunasa.modules.commander.api.CommandTabCompleter
 
-class CommandBuilder(private val name: String) {
+class CommandBuilder(private val name: String, private val key: CommandCategoryKey) {
     private var description: String = ""
     private var usage: String = "/$name"
     private var aliases: List<String> = emptyList()
@@ -34,7 +35,7 @@ class CommandBuilder(private val name: String) {
     }
 
     fun subCommand(name: String, block: CommandBuilder.() -> Unit) {
-        val builder = CommandBuilder(name)
+        val builder = CommandBuilder(name, key)
         builder.apply(block)
         subCommands[name.lowercase()] = builder.build()
     }
@@ -60,6 +61,7 @@ class CommandBuilder(private val name: String) {
             description,
             usage,
             aliases,
+            key,
             permission,
             playerOnly,
             subCommands,
