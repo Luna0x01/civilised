@@ -6,6 +6,7 @@ import dev.lunasa.modules.infuse.service.Configure
 import dev.lunasa.modules.infuse.service.Service
 import dev.lunasa.plugin.Civilised
 import dev.lunasa.plugin.persistence.tables.Players
+import dev.lunasa.plugin.persistence.tables.Votes
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -42,7 +43,7 @@ class DatabaseService {
 
             plugin.logger.info("Connected to database!")
 
-            val statements = transaction { MigrationUtils.statementsRequiredForDatabaseMigration(Players) }
+            val statements = transaction { MigrationUtils.statementsRequiredForDatabaseMigration(Players, Votes) }
 
             if (statements.isNotEmpty()) {
                 plugin.logger.info("Applying pending database migrations...")

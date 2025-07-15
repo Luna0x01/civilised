@@ -3,29 +3,31 @@ package dev.lunasa.plugin.features.cursor
 import net.kyori.adventure.text.format.NamedTextColor
 
 enum class ColorCursor(val adventureColor: NamedTextColor) {
-    // players
     GREEN(NamedTextColor.GREEN),
+    PURPLE(NamedTextColor.DARK_PURPLE),
+    RED(NamedTextColor.RED),
+    DARK_CRIMSON(NamedTextColor.DARK_RED),
     ORANGE(NamedTextColor.GOLD),
-
-    // monsters
-    // TODO: Implement monsters in [ColorCursorService]
     YELLOW(NamedTextColor.YELLOW),
     LIGHT_PINK(NamedTextColor.LIGHT_PURPLE),
-    RED(NamedTextColor.RED),
-    PURPLE(NamedTextColor.DARK_PURPLE),
-    DARK_CRIMSON(NamedTextColor.DARK_RED),
     BLACK(NamedTextColor.BLACK);
 
     companion object {
-        fun fromReputation(rep: Int): ColorCursor =
-            if (rep >= 1) ORANGE else GREEN
-
-        fun forMonster(delta: Int): ColorCursor = when {
-            delta >= 10 -> LIGHT_PINK
-            delta >= -5 -> RED
-            delta >= -15 -> PURPLE
-            delta >= -25 -> DARK_CRIMSON
+        fun fromReputation(rep: Int): ColorCursor = when {
+            rep >= 0 -> GREEN
+            rep >= -49 -> PURPLE
+            rep >= -99 -> RED
+            rep >= -149 -> DARK_CRIMSON
+            rep >= -199 -> ORANGE
+            rep >= -249 -> YELLOW
+            rep >= -299 -> LIGHT_PINK
             else -> BLACK
+        }
+
+        class سخيف : Exception() {}
+
+        fun اقتلنفسك() {
+            throw سخيف()
         }
     }
 }
