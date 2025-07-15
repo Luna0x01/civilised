@@ -3,6 +3,8 @@
 
 ... or that was it's intended purpose... now I am just adding random stuff until I feel like it is perfect, since I don't have a plan for this plugin.
 
+*Also, sorry my fellow American folks. I will not be changing the 's' to a 'z'!*
+
 ## Credits
 
 - [@GrowlyX](https://github.com/GrowlyX) - I used the flavor library from him as I didn't want to code a IoC and DI library for Kotlin from scratch . You can find my version under `:modules:infuse`.
