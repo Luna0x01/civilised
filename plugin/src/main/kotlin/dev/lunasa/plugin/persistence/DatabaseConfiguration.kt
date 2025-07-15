@@ -18,15 +18,6 @@ class DatabaseConfiguration(plugin: JavaPlugin) : OptionStorage(plugin, "databas
 
     val credentials = Credentials()
 
-    inner class Pooling : Section("pool") {
-        val enabled by property("enabled", true)
-        val maxConnections by property("max-connections", 10)
-        val minConnections by property("min-connections", 1)
-        val connectionTimeout by property("timeout", 30000L) // in millis
-    }
-
-    val pool = Pooling()
-
     enum class DatabaseType {
         SQLITE,
         MYSQL,
